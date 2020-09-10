@@ -50,6 +50,11 @@ func Test_Factory_Matcher(t *testing.T) {
 		t.Error("got unexpected registered matcher:", mockProtocolName)
 	}
 
+	proto := GetProtocol("mock-protocol")
+	if proto != nil {
+		t.Error("got unexpected registered protocol:", mockProtocolName)
+	}
+
 	// 2. register
 	err := RegisterMatcher(mockProtocolName, mockMatcher)
 	if err != nil {

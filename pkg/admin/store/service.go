@@ -82,6 +82,7 @@ func AddService(s *http.Server, name string, init func(), exit func()) {
 
 func StartService(inheritListeners []net.Listener) error {
 	for _, srv := range services {
+		// 判断服务是否已启动
 		if srv.start {
 			continue
 		}
@@ -90,6 +91,7 @@ func StartService(inheritListeners []net.Listener) error {
 		var saddr *net.TCPAddr
 
 		s := srv
+		// 将地址解析为tcp地址
 		saddr, err = net.ResolveTCPAddr("tcp", s.Addr)
 		if err != nil {
 			log.StartLogger.Fatalf("[admin store] [start service] [inheritListener] not valid: %v", s.Addr)
@@ -123,9 +125,10 @@ func StartService(inheritListeners []net.Listener) error {
 		if s.init != nil {
 			s.init()
 		}
+		// 标记本service为已启动,然后运行一个goroutine运行服务
 		s.start = true
 		utils.GoWithRecover(func() {
-			// set metrics
+			// 数据统计监听此listener
 			metrics.AddListenerAddr(s.Addr)
 			log.StartLogger.Infof("[admin store] [start service] start service %s on %s", s.name, ln.Addr().String())
 

@@ -84,6 +84,7 @@ func (s *Server) Start(config Config) {
 	}
 
 	srv := &http.Server{Addr: addr, Handler: mux}
+	// 保存到本地 service列表
 	store.AddService(srv, "Mosn Admin Server", nil, nil)
 	s.Server = srv
 }

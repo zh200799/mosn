@@ -123,7 +123,7 @@ func (fg *FeatureGate) SetFeatureState(key Feature, enable bool) error {
 	return fg.setFeatureState(key, enable)
 }
 
-// Enabled returns true if the key is enabled.
+// 如果Feature的对应的key启用则返回 true
 func (fg *FeatureGate) Enabled(key Feature) bool {
 	fg.lock.Lock()
 	defer fg.lock.Unlock()

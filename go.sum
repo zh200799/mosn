@@ -474,6 +474,8 @@ github.com/stretchr/testify v1.6.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/tebeka/strftime v0.1.3/go.mod h1:7wJm3dZlpr4l/oVK0t1HYIc4rMzQ2XJlOMIUJUJH6XQ=
 github.com/tent/http-link-go v0.0.0-20130702225549-ac974c61c2f9/go.mod h1:RHkNRtSLfOK7qBTHaeSX1D6BNpI3qw7NTxsmNr4RvN8=
 github.com/tevid/gohamcrest v1.1.1/go.mod h1:3UvtWlqm8j5JbwYZh80D/PVBt0mJ1eJiYgZMibh0H/k=
+github.com/thinkeridea/go-extend v1.1.1 h1:tziAAJ1Tove3VXzqtA0k0ZAP7+grafzFjRNSuG7nRbQ=
+github.com/thinkeridea/go-extend v1.1.1/go.mod h1:X/tseu0kBDuDMZYPIlQCQyfljB4CltMl1lQ3gwAs3c4=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/toolkits/concurrent v0.0.0-20150624120057-a4371d70e3e3/go.mod h1:QDlpd3qS71vYtakd2hmdpqhJ9nwv6mD6A30bQ1BPBFE=
 github.com/trainyao/go-maglev v0.0.0-20200611125015-4c1ae64d96a8 h1:o6jtI8/BV93ZCw681cNVMjyvLfnBboUP/lBOfmkb4Pg=

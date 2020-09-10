@@ -45,6 +45,7 @@ import (
 	"mosn.io/mosn/pkg/xds/conv"
 )
 
+// 查看服务器有效配置
 func getEffectiveConfig(port uint32) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/api/v1/config_dump", port))
 	if err != nil {
@@ -63,6 +64,7 @@ func getEffectiveConfig(port uint32) (string, error) {
 	return string(b), nil
 }
 
+// 查看服务指标统计值
 func getStats(port uint32) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/api/v1/stats", port))
 	if err != nil {
@@ -81,6 +83,7 @@ func getStats(port uint32) (string, error) {
 	return string(b), nil
 }
 
+// 查看服务全局指标统计
 func getGlobalStats(port uint32) (string, error) {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/api/v1/stats_glob", port))
 	if err != nil {
@@ -97,6 +100,7 @@ func getGlobalStats(port uint32) (string, error) {
 	return string(b), nil
 }
 
+// 得到日志级别
 func getLoggerLevel() ([]byte, error) {
 	url := "http://localhost:8889/api/v1/get_loglevel"
 	resp, err := http.Get(url)
@@ -114,6 +118,8 @@ func getLoggerLevel() ([]byte, error) {
 	}
 	return b, nil
 }
+
+// post更新日志级别
 func postUpdateLoggerLevel(port uint32, s string) (string, error) {
 	data := strings.NewReader(s)
 	url := fmt.Sprintf("http://localhost:%d/api/v1/update_loglevel", port)
@@ -133,6 +139,7 @@ func postUpdateLoggerLevel(port uint32, s string) (string, error) {
 	return string(b), nil
 }
 
+// 日志打开/关闭操作
 func postToggleLogger(port uint32, logger string, disable bool) (string, error) {
 	api := "enable_log" // enable
 	if disable {        //disable
@@ -157,6 +164,7 @@ func postToggleLogger(port uint32, logger string, disable bool) (string, error) 
 
 }
 
+// 得到mosn服务状态信息
 func getMosnState(port uint32) (pid int, state store.State, err error) {
 	url := fmt.Sprintf("http://localhost:%d/api/v1/states", port)
 	resp, err := http.Get(url)
@@ -181,6 +189,7 @@ func getMosnState(port uint32) (pid int, state store.State, err error) {
 	return pid, state, nil
 }
 
+// 通过istio得到mosn状态信息
 func getMosnStateForIstio(port uint32) (state envoy_admin_v2alpha.ServerInfo_State, err error) {
 	url := fmt.Sprintf("http://localhost:%d/server_info", port)
 	resp, err := http.Get(url)
@@ -201,6 +210,7 @@ func getMosnStateForIstio(port uint32) (state envoy_admin_v2alpha.ServerInfo_Sta
 	return serverInfo.GetState(), nil
 }
 
+//通过istio得到统计信息
 func getStatsForIstio(port uint32) (statsInfo string, err error) {
 	url := fmt.Sprintf("http://localhost:%d/stats", port)
 	resp, err := http.Get(url)
@@ -225,6 +235,7 @@ type mockMOSNConfig struct {
 	Port uint32 `json:"port"`
 }
 
+// mock一个mosn Admin配置信息
 func (m *mockMOSNConfig) GetAdmin() *v2.Admin {
 	return &v2.Admin{
 		Address: &core.Address{
@@ -243,6 +254,7 @@ func (m *mockMOSNConfig) GetAdmin() *v2.Admin {
 	}
 }
 
+// 通过mock一个 mosnAdmin的配置,测试 mosn Admin server的启动与停止
 func TestDumpConfig(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -250,6 +262,7 @@ func TestDumpConfig(t *testing.T) {
 		Name: "mock",
 		Port: 8889,
 	}
+	//根据配置文件创建一个server Admin service,放入本地store,此时并未启动
 	server.Start(config)
 	store.StartService(nil)
 	defer store.StopService()
@@ -260,17 +273,20 @@ func TestDumpConfig(t *testing.T) {
 			Driver: "test",
 		},
 	}
+	// 更新mosn服务配置
 	store.SetMosnConfig(mcfg)
 
 	time.Sleep(time.Second) //wait server start
-
+	// 查看更新配置后 生效的配置信息
 	if data, err := getEffectiveConfig(config.Port); err != nil {
 		t.Error(err)
 	} else {
+		// 检查mcfg中新增的信息是否存在于已生效配置中
 		if !strings.Contains(data, `tracing":{"enable":true,"driver":"test"}`) {
 			t.Errorf("unexpected effectiveConfig: %s\n", data)
 		}
 	}
+	// 清空配置信息
 	store.Reset()
 }
 
@@ -287,6 +303,7 @@ func TestDumpStats(t *testing.T) {
 
 	time.Sleep(time.Second) //wait server start
 
+	// 新创建一个统计信息
 	stats, _ := metrics.NewMetrics("DumpTest", map[string]string{"lbk1": "lbv1"})
 	stats.Counter("ct1").Inc(1)
 	stats.Gauge("gg2").Update(3)

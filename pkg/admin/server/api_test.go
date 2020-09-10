@@ -18,6 +18,7 @@
 package server
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -28,11 +29,22 @@ import (
 	"mosn.io/mosn/pkg/admin/store"
 )
 
+// GET请求测试所有features状态
 func TestKnownFeatures(t *testing.T) {
-	r := httptest.NewRequest("GET", "http://127.0.0.1/api/v1/features", nil)
+	// 测试POST请求
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/features", nil)
 	w := httptest.NewRecorder()
 	knownFeatures(w, r)
 	resp := w.Result()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("futures is not expected")
+	}
+
+	//测试Get请求, 不带参数
+	r = httptest.NewRequest(http.MethodGet, "http://127.0.0.1/api/v1/features", nil)
+	w = httptest.NewRecorder()
+	knownFeatures(w, r)
+	resp = w.Result()
 	if resp.StatusCode != 200 {
 		t.Fatalf("response status got %d", resp.StatusCode)
 	}
@@ -42,14 +54,20 @@ func TestKnownFeatures(t *testing.T) {
 	}
 	m := map[string]bool{}
 	json.Unmarshal(b, &m)
+	fmt.Println(string(b))
+	fmt.Println("请求响应参数为:")
+	for k, v := range m {
+		fmt.Printf("key:%s,val:%t\n", k, v)
+	}
 	v, ok := m[string(store.ConfigAutoWrite)]
 	if !ok || v {
 		t.Fatalf("features is not expected")
 	}
 }
 
+// GET请求测试某个key的features状态
 func TestSingleFeatureState(t *testing.T) {
-	r := httptest.NewRequest("GET", "http://127.0.0.1/api/v1/features?key=auto_config", nil)
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/api/v1/features?key=auto_config&key=XdsMtlsEnable", nil)
 	w := httptest.NewRecorder()
 	knownFeatures(w, r)
 	resp := w.Result()
@@ -65,6 +83,7 @@ func TestSingleFeatureState(t *testing.T) {
 	}
 }
 
+// GET请求查看服务端环境变量,以JSON返回响应信息
 func TestGetEnv(t *testing.T) {
 	os.Setenv("t1", "test")
 	os.Setenv("t3", "")
@@ -87,13 +106,14 @@ func TestGetEnv(t *testing.T) {
 		},
 		NotFound: []string{"t2"},
 	}
+	fmt.Println(string(b))
 	json.Unmarshal(b, out)
 	if !reflect.DeepEqual(out, expected) {
 		t.Fatalf("env got %s", string(b))
 	}
 }
 
-// Common Invalid Case
+// 表格驱动测试 普通命令有效性
 func TestInvalidCommon(t *testing.T) {
 	teasCases := []struct {
 		Method             string
@@ -101,6 +121,12 @@ func TestInvalidCommon(t *testing.T) {
 		ExpectedStatusCode int
 		Func               func(w http.ResponseWriter, r *http.Request)
 	}{
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
 		{
 			Method:             "POST",
 			Url:                "http://127.0.0.1/api/v1/config_dump",
@@ -111,6 +137,48 @@ func TestInvalidCommon(t *testing.T) {
 			Method:             "GET",
 			Url:                "http://127.0.0.1/api/v1/config_dump?mosnconfig&router",
 			ExpectedStatusCode: 400,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?mosnconfig",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?router",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?allrouters",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?allclusters",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?alllisteners",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?cluster",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               configDump,
+		},
+		{
+			Method:             "GET",
+			Url:                "http://127.0.0.1/api/v1/config_dump?listener",
+			ExpectedStatusCode: http.StatusOK,
 			Func:               configDump,
 		},
 		{
@@ -126,15 +194,33 @@ func TestInvalidCommon(t *testing.T) {
 			Func:               statsDump,
 		},
 		{
+			Method:             http.MethodGet,
+			Url:                "http://127.0.0.1/api/v1/stats",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               statsDump,
+		},
+		{
 			Method:             "POST",
 			Url:                "http://127.0.0.1/api/v1/stats_glob",
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
 			Func:               statsDumpProxyTotal,
 		},
 		{
+			Method:             http.MethodGet,
+			Url:                "http://127.0.0.1/api/v1/stats_glob",
+			ExpectedStatusCode: http.StatusOK,
+			Func:               statsDumpProxyTotal,
+		},
+		{
 			Method:             "POST",
 			Url:                "http://127.0.0.1/api/v1/get_loglevel",
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
+			Func:               getLoggerInfo,
+		},
+		{
+			Method:             http.MethodGet,
+			Url:                "http://127.0.0.1/api/v1/get_loglevel",
+			ExpectedStatusCode: http.StatusOK,
 			Func:               getLoggerInfo,
 		},
 		{
@@ -194,4 +280,36 @@ func TestInvalidCommon(t *testing.T) {
 			t.Fatalf("case %d response status code is %d, wanna: %d", idx, w.Result().StatusCode, tc.ExpectedStatusCode)
 		}
 	}
+}
+
+// 测试帮助命令
+func TestHelp(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/api/v1/help", nil)
+	w := httptest.NewRecorder()
+	help(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("futures is not expected")
+	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf(errMsgFmt, err)
+	}
+	fmt.Println(string(b))
+
+}
+
+func TestPluginApi(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/api/v1/plugin?status=all", nil)
+	w := httptest.NewRecorder()
+	pluginApi(w, r)
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("futures is not expected")
+	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf(errMsgFmt, err)
+	}
+	fmt.Println(string(b))
 }

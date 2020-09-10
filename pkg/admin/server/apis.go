@@ -36,6 +36,7 @@ import (
 	"mosn.io/mosn/pkg/types"
 )
 
+// 初始化日志级别
 var levelMap = map[string]log.Level{
 	"FATAL": log.FATAL,
 	"ERROR": log.ERROR,
@@ -45,11 +46,13 @@ var levelMap = map[string]log.Level{
 	"TRACE": log.TRACE,
 }
 
+// 定义错误printf的格式
 const errMsgFmt = `{
 	"error": "%s"
 }
 `
 
+// support apis
 func help(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	buf.WriteString("support apis:\n")
@@ -62,6 +65,8 @@ func help(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf.Bytes())
 }
 
+// 获取内存中的配置信息
+// GET http://127.0.0.1/api/v1/config_dump?router
 func configDump(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		log.DefaultLogger.Alertf(types.ErrorKeyAdmin, "api: %s, error: invalid method: %s", "config dump", r.Method)
@@ -125,6 +130,7 @@ func configDump(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// 获取指标统计值
 func statsDump(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		log.DefaultLogger.Alertf(types.ErrorKeyAdmin, "api: %s, error: invalid method: %s", "stats dump", r.Method)
@@ -139,6 +145,7 @@ func statsDump(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// 获取全局代理指标
 func statsDumpProxyTotal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		log.DefaultLogger.Alertf(types.ErrorKeyAdmin, "api: %s, error: invalid method: %s", "stats dump", r.Method)
@@ -166,7 +173,7 @@ func statsDumpProxyTotal(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(all))
 }
 
-// update log level
+// 定义日志结构体
 type LogLevelData struct {
 	LogPath  string `json:"log_path"`
 	LogLevel string `json:"log_level"`
@@ -291,7 +298,24 @@ func pluginApi(w http.ResponseWriter, r *http.Request) {
 	plugin.AdminApi(w, r)
 }
 
+// Get请求获取服务器已知的特性
+// 空参数则传递全部features信息
+// GET http://127.0.0.1/api/v1/features
+/**
+{
+ "MultiTenantMode": false,
+ "PayLoadLimitEnable": false,
+ "XdsMtlsEnable": false,
+ "auto_config": false
+}
+*/
+// 查询已知features信息
+// GET http://127.0.0.1/api/v1/features?key=auto_config
+/**
+true/false
+*/
 func knownFeatures(w http.ResponseWriter, r *http.Request) {
+	// 判断是否为get请求
 	if r.Method != http.MethodGet {
 		log.DefaultLogger.Alertf(types.ErrorKeyAdmin, "api: %s, error: invalid method: %s", "known features", r.Method)
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -308,11 +332,26 @@ func knownFeatures(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%t", featuregate.Enabled(featuregate.Feature(value)))
 }
 
+// 环境变量响应结构体
 type envResults struct {
 	Env      map[string]string `json:"env,omityempty"`
 	NotFound []string          `json:"not_found,omityempty"`
 }
 
+// 以Get请求方式获取服务中的环境变量
+// 请求方式为: http://127.0.0.1/api/v1/env?key=t1&key=t2&key=t3
+// 响应方式为: 格式化后的json串
+/**
+{
+ "env": {
+  "t1": "test",
+  "t3": ""
+ },
+ "not_found": [
+  "t2"
+ ]
+}
+*/
 func getEnv(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		log.DefaultLogger.Alertf(types.ErrorKeyAdmin, "api: %s, error: invalid method: %s", "get env", r.Method)

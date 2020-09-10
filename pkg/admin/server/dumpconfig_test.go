@@ -56,6 +56,7 @@ func initStoreConfig() {
 	})
 }
 
+// 使用表格驱动测试,检查服务器配置的参数是否重复
 func TestDumpConfigWithParameters(t *testing.T) {
 	initStoreConfig()
 	testCases := []struct {

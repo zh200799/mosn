@@ -19,6 +19,7 @@ package xprotocol
 
 import (
 	"errors"
+	"fmt"
 
 	"mosn.io/mosn/pkg/protocol"
 
@@ -55,8 +56,13 @@ func RegisterMatcher(name types.ProtocolName, matcher types.ProtocolMatch) error
 	if ok {
 		return errors.New("duplicate matcher register:" + string(name))
 	}
-
 	matcherMap[name] = matcher
+	TT, ok1 := matcherMap[name]
+	fmt.Println(TT)
+	fmt.Println(&TT)
+	if ok1 {
+		return errors.New("duplicate matcher register:" + string(name))
+	}
 	return nil
 }
 

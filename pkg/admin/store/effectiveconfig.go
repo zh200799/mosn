@@ -47,6 +47,7 @@ func init() {
 	}
 }
 
+// 清空配置信息
 func Reset() {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -56,6 +57,7 @@ func Reset() {
 	conf.routerConfigPath = make(map[string]string)
 }
 
+// 更新mosn server 配置
 func SetMosnConfig(cfg *v2.MOSNConfig) {
 	mutex.Lock()
 	defer mutex.Unlock()
