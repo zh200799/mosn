@@ -44,16 +44,18 @@ var levelMap = map[log.Level]string{
 var errorLoggerManagerInstance *ErrorLoggerManager
 
 func init() {
+	// 进行初始化本地日志管理器,可动态更新
 	errorLoggerManagerInstance = &ErrorLoggerManager{
 		mutex:    sync.Mutex{},
 		managers: make(map[string]log.ErrorLogger),
 	}
-	// use console as start logger
+	// 创建一个默认的Info级别 控制台 日志实现,保存在errorLoggerManagerInstance.managers中,key=""
 	StartLogger, _ = GetOrCreateDefaultErrorLogger("", log.INFO)
-	// default as start before Init
+	// 将mosn.io中默认日志实现设置为新创建的日志实现
 	log.DefaultLogger = StartLogger
+	// 将本地默认日志实现设置为新创建的日志实现
 	DefaultLogger = log.DefaultLogger
-	// default proxy logger for test, override after config parsed
+	// 创建一个代理日志记录实现,用于test,在之后会被自定义配置覆盖
 	log.DefaultContextLogger, _ = CreateDefaultContextLogger("", log.INFO)
 	Proxy = log.DefaultContextLogger
 }
@@ -89,13 +91,14 @@ func (mng *ErrorLoggerManager) GetOrCreateErrorLogger(p string, level log.Level,
 	if lg, ok := mng.managers[p]; ok {
 		return lg, nil
 	}
-	// only find exists
+	// f 为nil时,仅判断是否为空
 	if f == nil {
 		return nil, ErrNoLoggerFound
 	}
 
 	// if logLevelControl log level is higher than level input
 	// use logLevelControl to limit log level
+	// 单独mng.withLogLevelControl时, 按照较低的log.level走, trace>debug>info>warn>error
 	if mng.withLogLevelControl && mng.logLevelControl < level {
 		level = mng.logLevelControl
 	}

@@ -7,6 +7,8 @@ import (
 
 var Stats types.XdsStats
 
+// LDS， RDS， CDS， EDS以及SDS
+// Listener,Router,Cluster, Endpoint, Secret
 func InitStats() {
 	m := metrics.NewXdsStats()
 	Stats = types.XdsStats{

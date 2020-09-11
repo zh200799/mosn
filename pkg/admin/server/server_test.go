@@ -101,6 +101,7 @@ func getGlobalStats(port uint32) (string, error) {
 }
 
 // 得到日志级别
+// 响应为json,{输出目标:级别,...}{"":"INFO","./mosn_admin/test_admin.log":"INFO","./mosn_admin/test_admin1.log":"ERROR"}
 func getLoggerLevel() ([]byte, error) {
 	url := "http://localhost:8889/api/v1/get_loglevel"
 	resp, err := http.Get(url)
@@ -210,7 +211,8 @@ func getMosnStateForIstio(port uint32) (state envoy_admin_v2alpha.ServerInfo_Sta
 	return serverInfo.GetState(), nil
 }
 
-//通过istio得到统计信息
+// 通过istio得到统计信息
+// 返回结果为: cluster_manager.cds.update_success: 1\ncluster_manager.cds.update_rejected: 2\nlistener_manager.lds.up
 func getStatsForIstio(port uint32) (statsInfo string, err error) {
 	url := fmt.Sprintf("http://localhost:%d/stats", port)
 	resp, err := http.Get(url)
@@ -290,6 +292,7 @@ func TestDumpConfig(t *testing.T) {
 	store.Reset()
 }
 
+// 创建一个统计规则/全局统计规则,进行测试
 func TestDumpStats(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -326,14 +329,15 @@ func TestDumpStats(t *testing.T) {
 	}
 
 	stats1, _ := metrics.NewMetrics("downstream", map[string]string{"proxy": "global"})
-	stats1.Counter("ct1").Inc(1)
 	stats1.Gauge("gg2").Update(3)
+	stats1.Counter("ct1").Inc(1)
 	expected_string := "ct1:1\ngg2:3\n"
 	if data, err := getGlobalStats(config.Port); err != nil {
 		t.Error(err)
 	} else {
 		want := strings.Split(expected_string, "\n")
 		got := strings.Split(data, "\n")
+		// 统计信息添加顺序不一致,所以需要根据sep切分后,进行排序,再用deepEqual来进行判断
 		sort.Strings(want)
 		sort.Strings(got)
 		if !reflect.DeepEqual(got, want) {
@@ -344,6 +348,7 @@ func TestDumpStats(t *testing.T) {
 	store.Reset()
 }
 
+// 创建一个Istio统计规则
 func TestDumpStatsForIstio(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -367,7 +372,8 @@ func TestDumpStatsForIstio(t *testing.T) {
 	if err != nil {
 		t.Error("get stats for istio failed")
 	}
-
+	s := fmt.Sprintf("%s: %d\n", CDS_UPDATE_REJECT, 2)
+	fmt.Println(s)
 	match, _ := regexp.MatchString(fmt.Sprintf("%s: %d\n", CDS_UPDATE_SUCCESS, 1), statsForIstio)
 	match2, _ := regexp.MatchString(fmt.Sprintf("%s: %d\n", CDS_UPDATE_REJECT, 2), statsForIstio)
 	match3, _ := regexp.MatchString(fmt.Sprintf("%s: %d\n", LDS_UPDATE_SUCCESS, 3), statsForIstio)
@@ -379,9 +385,11 @@ func TestDumpStatsForIstio(t *testing.T) {
 		!match4 {
 		t.Error("wrong stats for istio output", match, match2, match3, match4)
 	}
-	//store.Reset()
+	store.Reset()
 }
 
+// 创建日志测试
+// 从api接口获取日志列表信息测试
 func TestGetLogger(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -395,9 +403,19 @@ func TestGetLogger(t *testing.T) {
 
 	time.Sleep(time.Second) //wait server start
 
-	logName := "/tmp/mosn_admin/test_admin.log"
+	logName := "./mosn_admin/test_admin.log"
 	_, err := log.GetOrCreateDefaultErrorLogger(logName, log.INFO)
 	if err != nil {
+		t.Fatal("create logger failed")
+	}
+	logName = "./mosn_admin/test_admin.log"
+	_, err1 := log.GetOrCreateDefaultErrorLogger(logName, log.INFO)
+	if err1 != nil {
+		t.Fatal("create logger failed")
+	}
+	logName1 := "./mosn_admin/test_admin1.log"
+	_, err2 := log.GetOrCreateDefaultErrorLogger(logName1, log.ERROR)
+	if err2 != nil {
 		t.Fatal("create logger failed")
 	}
 	logInfo, err := getLoggerLevel()
@@ -405,12 +423,14 @@ func TestGetLogger(t *testing.T) {
 		t.Fatal(err)
 	}
 	loggerMap := make(map[string]string)
+	// 将json转换为对象(map[string]string)
 	json.Unmarshal(logInfo, &loggerMap)
 	if loggerMap[logName] != "INFO" {
 		t.Errorf("fail to get logger info, %+v", loggerMap)
 	}
 }
 
+// 测试更新服务端Logger的级别
 func TestUpdateLogger(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -429,6 +449,7 @@ func TestUpdateLogger(t *testing.T) {
 	if err != nil {
 		t.Fatal("create logger failed")
 	}
+	// 通过API接口查看服务端日志级别
 	logInfo, err := getLoggerLevel()
 	if err != nil {
 		t.Fatal(err)
@@ -444,9 +465,11 @@ func TestUpdateLogger(t *testing.T) {
 		"log_path": "/tmp/mosn_admin/test_admin.log",
 		"log_level": "ERROR"
 	}`
+	// post请求更新服务端level,服务端更新本地manager中的log,实际是通过map查找到logger,然后修改其指针对应地址,即logger对象
 	if _, err := postUpdateLoggerLevel(config.Port, postData); err != nil {
 		t.Fatal(err)
 	}
+	// 此处logger可以取到修改后的地址
 	if logger.GetLogLevel() != log.ERROR {
 		t.Errorf("update logger success, but logger level is not expected: %v", logger.GetLogLevel())
 	}
@@ -461,6 +484,7 @@ func TestUpdateLogger(t *testing.T) {
 	}
 }
 
+// 测试日志打开/关闭, 日志写入
 func TestToggleLogger(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -483,13 +507,13 @@ func TestToggleLogger(t *testing.T) {
 	}
 	// write raw logger, expected write success
 	logger.Printf("first")
-	// disable logger
+	// 调用api 关闭名称为logName的logger
 	if _, err := postToggleLogger(config.Port, logName, true); err != nil {
 		t.Fatal(err)
 	}
 	// write raw logger, expected write null
 	logger.Printf("disable")
-	// enable logger
+	// 调用api 打开名为logName的logger
 	if _, err := postToggleLogger(config.Port, logName, false); err != nil {
 		t.Fatal(err)
 	}
@@ -510,6 +534,7 @@ func TestToggleLogger(t *testing.T) {
 
 }
 
+// 测试得到服务状态及修改服务状态
 func TestGetState(t *testing.T) {
 	time.Sleep(time.Second)
 	server := Server{}
@@ -532,6 +557,8 @@ func TestGetState(t *testing.T) {
 	if err != nil {
 		t.Fatal("get mosn states for istio failed")
 	}
+	// 添加istio统计初始化
+	conv.InitStats()
 	stats, err := getStatsForIstio(config.Port)
 	if err != nil {
 		t.Fatal("get mosn stats for istio failed")
@@ -627,6 +654,7 @@ func TestGetState(t *testing.T) {
 	}
 }
 
+// 启动admin server之前注册新的API
 func TestRegisterNewAPI(t *testing.T) {
 	// register api before start
 	newAPI := func(w http.ResponseWriter, r *http.Request) {

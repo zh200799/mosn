@@ -90,17 +90,19 @@ func NewMetrics(typ string, labels map[string]string) (types.Metrics, error) {
 	defaultStore.mutex.Lock()
 	defer defaultStore.mutex.Unlock()
 
-	// support exclusion only
+	// 判断当前增加的labels是否在排除标签规则内
 	if defaultStore.matcher.isExclusionLabels(labels) {
 		return NewNilMetrics(typ, labels)
 	}
 
-	// check existence
+	// 将lables进行排序后输出全名,keys,values
 	name, keys, values := fullName(typ, labels)
+	// 判断本地store中是否已存在该name,存在则直接返回
 	if m, ok := defaultStore.metrics[name]; ok {
 		return m, nil
 	}
 
+	// 构建该指标信息结构
 	stats := &metrics{
 		typ:       typ,
 		labels:    labels,
@@ -110,17 +112,19 @@ func NewMetrics(typ string, labels map[string]string) (types.Metrics, error) {
 		registry:  gometrics.NewRegistry(),
 	}
 
+	// 存储在本地
 	defaultStore.metrics[name] = stats
-
 	return stats, nil
 }
 
+// 将map[string]string 排序称为两个有序的切片,keys,values[]
 func sortedLabels(labels map[string]string) (keys, values []string) {
 	keys = make([]string, 0, len(labels))
 	values = make([]string, 0, len(labels))
 	for k := range labels {
 		keys = append(keys, k)
 	}
+	// 对将要加入的标签 key 进行排序
 	sort.Strings(keys)
 	for _, k := range keys {
 		values = append(values, labels[k])
@@ -223,6 +227,10 @@ func ResetAll() {
 	defaultStore.matcher = defaultMatcher
 }
 
+// 将labels的key经过排序,然后返回
+// fullName typ.key1.value1.key2.value2....
+// keys 有序keys
+// values 有序values
 func fullName(typ string, labels map[string]string) (fullName string, keys, values []string) {
 	keys, values = sortedLabels(labels)
 

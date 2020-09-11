@@ -8,10 +8,12 @@ type metricsMatcher struct {
 
 // isExclusionLabels returns the labels will be ignored or not
 func (m *metricsMatcher) isExclusionLabels(labels map[string]string) bool {
+	// 判断是否全部拒绝
 	if m.rejectAll {
 		return true
 	}
 	// TODO: support pattern
+	// 判断新增规则是否在排除Labels中
 	for _, label := range m.exclusionLabels {
 		if _, ok := labels[label]; ok {
 			return true
